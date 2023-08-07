@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cat Battle Game</title>
+</head>
+<body>
+    <h1>Cat Battle Game</h1>
+    <button type="button" onclick="registerPlayer()">Register Player</button>
+    <br><br>
+    <input type="file" id="image-input" accept="image/*">
+    <button type="button" onclick="classifyImage()">Gain power</button>
+    <br><br>
+    <div id="cat-gif-container" style="display: none;">
+        <img id="cat-gif" src="animated.gif" style="max-width: 300px;">
+    </div>
+    <br><br>
+    <div id="cat-container">
+        <img id="cat-image" style="max-width: 300px;">
+    </div>
+    <br><br>
+    <div id="label-container"></div>
+    <br><br>    
+    <input type="text" id="cat-name" placeholder="Enter Cat Name">       
+    <button type="button" onclick="registerCat()">Register Cat</button>
+    <br><br>
+    <input type="number" id="cat-id1" placeholder="Enter CatId 1"> 
+    <input type="number" id="cat-id2" placeholder="Enter CatId 2">  
+
+    <button type="button" onclick="startBattle()">Start Battle</button>
+    <button type="button" onclick="endBattle()">End Battle</button>    
+
+    <div id="result-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.0/dist/web3.min.js"></script>
+    <script type="text/javascript">
+        const URL = "model/";
+
+        const contractAddress = '0x3e27a1DDa6ecAD2187cd34918591322716263cc1';
+        const contractABI = [ 	{ 		"anonymous": false, 		"inputs": [ 			{ 				"indexed": false, 				"internalType": "uint256", 				"name": "winnerCatId", 				"type": "uint256" 			}, 			{ 				"indexed": false, 				"internalType": "uint256", 				"name": "loserCatId", 				"type": "uint256" 			} 		], 		"name": "BattleEnded", 		"type": "event" 	}, 	{ 		"anonymous": false, 		"inputs": [ 			{ 				"indexed": false, 				"internalType": "uint256", 				"name": "catId1", 				"type": "uint256" 			}, 			{ 				"indexed": false, 				"internalType": "uint256", 				"name": "catId2", 				"type": "uint256" 			} 		], 		"name": "BattleStarted", 		"type": "event" 	}, 	{ 		"anonymous": false, 		"inputs": [ 			{ 				"indexed": false, 				"internalType": "uint256", 				"name": "catId", 				"type": "uint256" 			}, 			{ 				"indexed": false, 				"internalType": "string", 				"name": "name", 				"type": "string" 			} 		], 		"name": "CatRegistered", 		"type": "event" 	}, 	{ 		"inputs": [ 			{ 				"internalType": "uint256", 				"name": "", 				"type": "uint256" 			} 		], 		"name": "cats", 		"outputs": [ 			{ 				"internalType": "uint256", 				"name": "id", 				"type": "uint256" 			}, 			{ 				"internalType": "address", 				"name": "owner", 				"type": "address" 			}, 			{ 				"internalType": "string", 				"name": "name", 				"type": "string" 			}, 			{ 				"internalType": "uint256", 				"name": "LowAttackPower", 				"type": "uint256" 			}, 			{ 				"internalType": "uint256", 				"name": "HighAttackPower", 				"type": "uint256" 			}, 			{ 				"internalType": "uint256", 				"name": "LowDefensePower", 				"type": "uint256" 			}, 			{ 				"internalType": "uint256", 				"name": "HighDefensePower", 				"type": "uint256" 			}, 			{ 				"internalType": "enum CatBattleGame.BattleStatus", 				"name": "status", 				"type": "uint8" 			} 		], 		"stateMutability": "view", 		"type": "function" 	}, 	{ 		"inputs": [ 			{ 				"internalType": "uint256", 				"name": "catId1", 				"type": "uint256" 			}, 			{ 				"internalType": "uint256", 				"name": "catId2", 				"type": "uint256" 			} 		], 		"name": "endBattle", 		"outputs": [], 		"stateMutability": "nonpayable", 		"type": "function" 	}, 	{ 		"inputs": [], 		"name": "loser", 		"outputs": [ 			{ 				"internalType": "uint256", 				"name": "", 				"type": "uint256" 			} 		], 		"stateMutability": "view", 		"type": "function" 	}, 	{ 		"inputs": [ 			{ 				"internalType": "string", 				"name": "name", 				"type": "string" 			}, 			{ 				"internalType": "uint256", 				"name": "LowAttackPower", 				"type": "uint256" 			}, 			{ 				"internalType": "uint256", 				"name": "HighAttackPower", 				"type": "uint256" 			}, 			{ 				"internalType": "uint256", 				"name": "LowDefensePower", 				"type": "uint256" 			}, 			{ 				"internalType": "uint256", 				"name": "HighDefensePower", 				"type": "uint256" 			} 		], 		"name": "registerCat", 		"outputs": [], 		"stateMutability": "nonpayable", 		"type": "function" 	}, 	{ 		"inputs": [], 		"name": "registerPlayer", 		"outputs": [], 		"stateMutability": "nonpayable", 		"type": "function" 	}, 	{ 		"inputs": [ 			{ 				"internalType": "address", 				"name": "", 				"type": "address" 			} 		], 		"name": "registeredPlayers", 		"outputs": [ 			{ 				"internalType": "bool", 				"name": "", 				"type": "bool" 			} 		], 		"stateMutability": "view", 		"type": "function" 	}, 	{ 		"inputs": [ 			{ 				"internalType": "uint256", 				"name": "catId1", 				"type": "uint256" 			}, 			{ 				"internalType": "uint256", 				"name": "catId2", 				"type": "uint256" 			} 		], 		"name": "startBattle", 		"outputs": [], 		"stateMutability": "nonpayable", 		"type": "function" 	}, 	{ 		"inputs": [], 		"name": "totalCats", 		"outputs": [ 			{ 				"internalType": "uint256", 				"name": "", 				"type": "uint256" 			} 		], 		"stateMutability": "view", 		"type": "function" 	}, 	{ 		"inputs": [], 		"name": "winner", 		"outputs": [ 			{ 				"internalType": "uint256", 				"name": "", 				"type": "uint256" 			} 		], 		"stateMutability": "view", 		"type": "function" 	} ];
+
+        let model, labelContainer, maxPredictions;
+        let web3, contractInstance;
+
+        async function initWeb3() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                await window.ethereum.enable();
+            } else if (window.web3) {
+                web3 = new Web3(window.web3.currentProvider);
+            } else {
+                console.error('No web3 provider detected');
+            }
+
+            contractInstance = new web3.eth.Contract(contractABI, contractAddress);
+        }
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            labelContainer = document.getElementById("label-container");
+            for (let i = 0; i < maxPredictions; i++) {
+                labelContainer.appendChild(document.createElement("div"));
+            }
+        }
+
+        async function classifyImage() {
+            const imageInput = document.getElementById("image-input");            
+
+            if (!imageInput.files || !imageInput.files[0]) {
+                return;
+            }
+
+            const image = imageInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function (e) {
+                const img = document.createElement("img");
+                img.src = e.target.result;
+
+                img.onload = async function () {
+                    const catImage = document.getElementById("cat-image");
+                    catImage.src = img.src;
+
+                    await init();
+                    const prediction = await model.predict(img);
+                    for (let i = 0; i < maxPredictions; i++) {
+                        const classPrediction =
+                            prediction[i].className + ": " + prediction[i].probability.toFixed(2).replace('.', '');
+                        labelContainer.childNodes[i].innerHTML = classPrediction;
+                    }
+                };
+            };
+
+            reader.readAsDataURL(image);
+        }
+
+        async function registerPlayer() {
+            const accounts = await web3.eth.getAccounts();
+            const fromAddress = accounts[0];
+
+            await contractInstance.methods.registerPlayer().send({ from: fromAddress })
+            .on('transactionHash', function(hash){
+                console.log('Transaction Hash:', hash);
+            })
+            .on('error', console.error);
+
+            console.log('Transaction sent');
+        }
+
+        async function registerCat() {
+            const catName = document.getElementById("cat-name").value;            
+            
+            const lowAttackPower = parseFloat(labelContainer.childNodes[0].innerHTML.split(": ")[1]);
+            const highAttackPower = parseFloat(labelContainer.childNodes[1].innerHTML.split(": ")[1]);
+            const lowDefensePower = parseFloat(labelContainer.childNodes[2].innerHTML.split(": ")[1]);
+            const highDefensePower = parseFloat(labelContainer.childNodes[3].innerHTML.split(": ")[1]);
+
+            const catData = {
+                name: catName,
+                lowAttackPower: lowAttackPower,
+                highAttackPower: highAttackPower,
+                lowDefensePower: lowDefensePower,
+                highDefensePower: highDefensePower,
+            };
+
+            const accounts = await web3.eth.getAccounts();
+            const fromAddress = accounts[0];
+
+            await contractInstance.methods.registerCat(
+                catData.name,
+                catData.lowAttackPower,
+                catData.highAttackPower,
+                catData.lowDefensePower,
+                catData.highDefensePower
+            ).send({ from: fromAddress })
+            .on('transactionHash', function(hash){
+                console.log('Transaction Hash:', hash);
+            })            
+            .on('error', console.error);
+
+            console.log('Transaction sent');
+
+            const catId = await contractInstance.methods.totalCats().call()
+            alert('Cat Id:'+catId);
+            
+        }
+
+        async function startBattle() {
+            const catId1 = document.getElementById("cat-id1").value;
+            const catId2 = document.getElementById("cat-id2").value;
+            console.log('Cat Id 1:'+catId1);
+            console.log('Cat Id 2:'+catId2);
+
+            const accounts = await web3.eth.getAccounts();
+            const fromAddress = accounts[0];
+
+            await contractInstance.methods.startBattle(catId1, catId2).send({ from: fromAddress })
+            .on('transactionHash', function(hash){
+                console.log('Transaction Hash:', hash);
+            })          
+            .on('error', console.error);
+
+            console.log('Transaction sent');
+
+            const catGifContainer = document.getElementById("cat-gif-container");
+            const catGif = document.getElementById("cat-gif");
+            catGifContainer.style.display = "block";
+
+            const catContainer = document.getElementById("cat-container");
+            catContainer.style.display = "none";
+
+            const labelContainer = document.getElementById("label-container");
+            labelContainer.style.display = "none";
+            
+        }
+
+
+
+        async function endBattle() {
+            const catId1 = document.getElementById("cat-id1").value;
+            const catId2 = document.getElementById("cat-id2").value;
+            console.log('Cat Id 1:'+catId1);
+            console.log('Cat Id 2:'+catId2);
+
+            const accounts = await web3.eth.getAccounts();
+            const fromAddress = accounts[0];
+
+            try {
+                const result = await contractInstance.methods.endBattle(catId1, catId2).send({ from: fromAddress });
+
+                console.log('Transaction Hash:', result.transactionHash);
+
+                let receipt = null;
+                while (receipt === null) {
+                    receipt = await web3.eth.getTransactionReceipt(result.transactionHash);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
+                console.log('Transaction confirmed. Block number:', receipt.blockNumber);
+
+                const winnerCatId = await contractInstance.methods.winner().call();
+                const loserCatId = await contractInstance.methods.loser().call();
+
+                console.log('Winner:', winnerCatId);
+                console.log('Loser:', loserCatId);
+
+                document.getElementById('result-container').innerHTML = `Winner: Cat ${winnerCatId}, Loser: Cat ${loserCatId}`;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+            const catGifContainer = document.getElementById("cat-gif-container");
+            catGifContainer.style.display = "none";
+        }
+
+        async function initialize() {
+            await initWeb3();
+        }
+
+        initialize();
+    </script>
+</body>
+</html>
+
